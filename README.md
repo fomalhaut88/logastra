@@ -83,7 +83,7 @@ Run:
 
 ```
 docker run \
-  --restart-always \
+  --restart=always \
   -p 8001:8000 \
   --name logastra-app \
   -v ./data:/app/data \
