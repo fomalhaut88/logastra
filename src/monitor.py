@@ -67,7 +67,8 @@ async def handle_track(track: Track, dt: datetime):
             await asyncio.wait_for(coro, timeout=TIMEOUT)
         except Exception as exc:
             logging.info(f"Track {track.name} failed: {str(exc)}")
-            fail_detail = str(exc)
+            fail_detail = f"{exc.__class__.__name__}\n{str(exc)}\n\n" \
+                          f"{traceback.format_exc()}".strip()
         else:
             logging.info(f"Track {track.name} checked successfully")
             fail_detail = None
