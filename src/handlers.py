@@ -33,16 +33,21 @@ class PortAvailability(Handler):
 
 class WebAvailability(Handler):
     def __init__(
-        self, url: str, result_text: str | None = None,
-        result_json: dict | None = None
+        self, url: str, status_code: int | None = None,
+        result_text: str | None = None, result_json: dict | None = None
     ):
         self._url = url
+        self._status_code = status_code
         self._result_text = result_text
         self._result_json = result_json
 
     async def process(self) -> None:
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=self._status_code is None
+        ) as session:
             async with session.get(self._url) as resp:
+                if self._status_code is not None:
+                    assert self._status_code == resp.status
                 if self._result_text is not None:
                     resp_text = await resp.text()
                     assert resp_text == self._result_text, resp_text

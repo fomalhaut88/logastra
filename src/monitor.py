@@ -88,7 +88,7 @@ async def handle_track(track: Track, dt: datetime):
                     else TrackStatus.FAILED
                 ),
                 'last_check': dt,
-                'last_fail': track.fail_detail if fail_detail is None else dt,
+                'last_fail': track.last_fail if fail_detail is None else dt,
                 'fail_detail': fail_detail,
             })
 
