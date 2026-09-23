@@ -83,11 +83,12 @@ Run:
 
 ```
 docker run \
-  -it --rm \
+  --restart-always \
   -p 8001:8000 \
+  --name logastra-app \
   -v ./data:/app/data \
   --env-file=.env \
-  logastra
+  -d logastra
 ```
 
 Do not forget to ensure `.env` file with the following variables:
