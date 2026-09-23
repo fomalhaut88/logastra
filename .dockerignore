@@ -1,0 +1,17 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+env
+.env
+db.sqlite3
+data/
+docs/
+.claude
+.vscode
+.idea
+draft.txt
