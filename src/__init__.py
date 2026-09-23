@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 VERSION = "0.1.0"
@@ -131,3 +133,14 @@ async def version_view() -> VersionResponse:
     Version of the service.
     """
     return VersionResponse(version=VERSION)
+
+
+@app.get("/", include_in_schema=False)
+async def index_view():
+    """
+    Default view (redirect to /index.html).
+    """
+    return RedirectResponse("/index.html")
+
+
+app.mount("/", StaticFiles(directory="./static"), name="static")

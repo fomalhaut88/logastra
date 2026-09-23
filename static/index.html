@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logastra Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .status-icon { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .status-ok { background-color: #10b981; }
+        .status-failed { background-color: #ef4444; }
+        .status-unknown { background-color: #6b7280; }
+        .expandable-content { transition: max-height 0.3s ease-out; overflow: hidden; }
+        .collapsed { max-height: 0; }
+        .expanded { max-height: 500px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-96">
+            <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">APP_TOKEN</label>
+                    <input type="password" id="app-token-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter your token">
+                </div>
+                <button onclick="handleLogin()" id="login-btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Login
+                </button>
+                <p id="login-error" class="text-red-500 text-xs text-center hidden">Invalid token</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="hidden min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-800">Logastra Monitor</h1>
+            <div class="flex items-center space-x-6">
+                <span id="last-updated" class="text-xs text-gray-400 italic"></span>
+                <div class="flex items-center space-x-4">
+                    <a href="/docs" target="_blank" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                        Swagger UI
+                    </a>
+                    <button onclick="handleLogout()" class="text-sm font-medium text-red-600 hover:text-red-800 transition-colors">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <main class="flex-grow p-6">
+            <div class="max-w-7xl mx-auto">
+                <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Check</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Fail</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notify</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracks-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Rows will be injected here -->
+                        </tbody>
+                    </table>
+                    <div id="loading-state" class="py-12 text-center text-gray-500">
+                        Loading tracks...
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const COOKIE_NAME = 'app-token-logastra';
+        const API_BASE = '';
+        let pollingInterval = null;
+
+        // --- Utility functions ---
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        function setCookie(name, value, days = 7) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = `; expires=${date.toUTCString()}`;
+            document.cookie = `${name}=${value}${expires}; path=/; SameSite=Strict`;
+        }
+
+        function deleteCookie(name) {
+            document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+        }
+
+        async function apiRequest(url) {
+            const token = getCookie(COOKIE_NAME);
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return await response.json();
+        }
+
+        // --- Auth logic ---
+
+        async function handleLogin() {
+            const tokenInput = document.getElementById('app-token-input');
+            const loginBtn = document.getElementById('login-btn');
+            const errorMsg = document.getElementById('login-error');
+            const token = tokenInput.value.trim();
+
+            if (!token) return;
+
+            loginBtn.disabled = true;
+            loginBtn.innerText = 'Checking...';
+            errorMsg.classList.add('hidden');
+
+            try {
+                const trackResponse = await fetch('/tracks', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (trackResponse.ok) {
+                    setCookie(COOKIE_NAME, token);
+                    window.location.reload();
+                } else {
+                    throw new Error('Unauthorized');
+                }
+            } catch (e) {
+                errorMsg.classList.remove('hidden');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerText = 'Login';
+            }
+        }
+
+        function handleLogout() {
+            deleteCookie(COOKIE_NAME);
+            window.location.reload();
+        }
+
+        // --- Data rendering ---
+
+        function renderTracks(tracks) {
+            const tbody = document.getElementById('tracks-table-body');
+            const loading = document.getElementById('loading-state');
+            const lastUpdated = document.getElementById('last-updated');
+
+            tbody.innerHTML = '';
+            loading.classList.add('hidden');
+            lastUpdated.innerText = `Last update: ${new Date().toLocaleTimeString()}`;
+
+            if (!tracks || tracks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No tracks found.</td></tr>';
+                return;
+            }
+
+            tracks.forEach((track, index) => {
+                const statusMap = {
+                    'ok': { class: 'status-ok', label: 'OK' },
+                    'failed': { class: 'status-failed', label: 'Failed' },
+                    'unknown': { class: 'status-unknown', label: 'Unknown' }
+                };
+                const status = statusMap[track.status] || statusMap['unknown'];
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 transition-colors";
+
+                const checkIcon = (val) => val ? '<span class="text-green-500">✔</span>' : '<span class="text-red-500">✘</span>';
+
+                const detailBtn = track.fail_detail ?
+                    `<button onclick="toggleDetail(${index})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium focus:outline-none">View Detail</button>` :
+                    '';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${track.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="flex items-center">
+                            <span class="status-icon ${status.class} mr-2"></span>
+                            ${status.label}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${track.schedule}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${track.last_check ? new Date(track.last_check).toLocaleString() : '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${track.last_fail ? new Date(track.last_fail).toLocaleString() : '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        ${detailBtn}
+                        <div id="fail-detail-${index}" class="hidden bg-red-50 p-2 text-xs text-red-700 mt-1 rounded border border-red-100">${track.fail_detail || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center">${checkIcon(track.notify)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center">${checkIcon(track.active)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function toggleDetail(index) {
+            const el = document.getElementById(`fail-detail-${index}`);
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        async function fetchAndRender() {
+            try {
+                const tracks = await apiRequest('/tracks');
+                renderTracks(tracks);
+            } catch (e) {
+                console.error("Failed to fetch tracks:", e);
+            }
+        }
+
+        // --- Initialization ---
+
+        async function init() {
+            const token = getCookie(COOKIE_NAME);
+
+            if (!token) {
+                document.getElementById('login-modal').classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/tracks', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    document.getElementById('main-content').classList.remove('hidden');
+                    await fetchAndRender();
+                    // Start polling every 10 seconds
+                    pollingInterval = setInterval(fetchAndRender, 10000);
+                } else {
+                    deleteCookie(COOKIE_NAME);
+                    document.getElementById('login-modal').classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("Failed to initialize", e);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
