@@ -10,7 +10,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-VERSION = "0.1.0"
+from .schemas import VersionResponse, TrackResponse, TrackCreate
+from .db import (
+    init_db, get_db, list_tracks, info_track, create_track, patch_track,
+    delete_track
+)
+from .log import init_log, close_log, load_last_logs, Check
+from .monitor import monitor
+
+
+VERSION = "0.1.1"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 APP_TOKEN = os.getenv("APP_TOKEN")
 
@@ -19,14 +28,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-
-from .schemas import VersionResponse, TrackResponse, TrackCreate
-from .db import (
-    init_db, get_db, list_tracks, info_track, create_track, patch_track,
-    delete_track
-)
-from .log import init_log, close_log, load_last_logs, Check
-from .monitor import monitor
 
 
 security = HTTPBearer()

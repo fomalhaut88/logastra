@@ -98,7 +98,9 @@ async def handle_track(track: Track, dt: datetime):
         # Send notification
         if track.notify:
             if has_failed:
-                await notify(f"Service {track.name} failed:\n\n{fail_detail}")
+                await notify(
+                    f"Service {track.name} failed:\n\n```\n{fail_detail}\n```"
+                )
             if has_resumed:
                 await notify(f"Service {track.name} resumed")
 
@@ -107,9 +109,13 @@ async def handle_track(track: Track, dt: datetime):
 
 
 async def notify(text: str):
-    async with aiohttp.ClientSession(raise_for_status=True) as session:
-        async with session.post(
-            NOTIFIER_URL, data=text,
-            headers={"Authorization": f"Bearer {NOTIFIER_TOKEN}"}
-        ):
-            pass
+    try:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
+            async with session.post(
+                NOTIFIER_URL, data=text,
+                headers={"Authorization": f"Bearer {NOTIFIER_TOKEN}"}
+            ):
+                pass
+    except Exception:
+        logging.error(f"Could not send notification: {text}")
+        logging.error(traceback.format_exc())
