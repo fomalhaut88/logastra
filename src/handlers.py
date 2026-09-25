@@ -3,6 +3,7 @@ import asyncio
 from abc import ABC, abstractmethod
 
 import aiohttp
+import asyncssh
 
 
 def get_handler_class(class_name: str) -> "Handler":
@@ -54,3 +55,16 @@ class WebAvailability(Handler):
                 if self._result_json is not None:
                     resp_json = await resp.json()
                     assert resp_json == self._result_json, resp_json
+
+
+class SshAvailability(Handler):
+    def __init__(self, host: str, port: int = 22):
+        self._host = host
+        self._port = port
+
+    async def process(self) -> None:
+        try:
+            async with asyncssh.connect(self._host, self._port):
+                pass
+        except asyncssh.misc.DisconnectError:
+            pass

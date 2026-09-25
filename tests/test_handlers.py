@@ -1,11 +1,10 @@
 from unittest import IsolatedAsyncioTestCase
 
-from src.handlers import PortAvailability, WebAvailability
+from src.handlers import PortAvailability, WebAvailability, SshAvailability
 
 
 class TestHandlers(IsolatedAsyncioTestCase):
     async def test_port_availability(self):
-        await PortAvailability(host='78.186.183.41', port=14732).process()
         await PortAvailability(host='78.186.183.41', port=31552).process()
         await PortAvailability(host='78.186.183.41', port=5772).process()
 
@@ -23,3 +22,7 @@ class TestHandlers(IsolatedAsyncioTestCase):
                 "lite_mode": False,
             },
         ).process()
+
+    async def test_ssh_availability(self):
+        await SshAvailability(host='78.186.183.41', port=14732).process()
+        await SshAvailability(host='209.38.251.231').process()
