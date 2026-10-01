@@ -16,7 +16,7 @@ from .handlers import get_handler_class
 SLEEP = 5.0
 TIMEOUT = 15.0
 
-NOTIFIER_URL = "https://notifier.alexfomalhaut.com/notify"
+NOTIFIER_URL = os.getenv("NOTIFIER_URL")
 NOTIFIER_TOKEN = os.getenv("NOTIFIER_TOKEN")
 
 
@@ -109,13 +109,14 @@ async def handle_track(track: Track, dt: datetime):
 
 
 async def notify(text: str):
-    try:
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
-            async with session.post(
-                NOTIFIER_URL, data=text,
-                headers={"Authorization": f"Bearer {NOTIFIER_TOKEN}"}
-            ):
-                pass
-    except Exception:
-        logging.error(f"Could not send notification: {text}")
-        logging.error(traceback.format_exc())
+    if NOTIFIER_URL:
+        try:
+            async with aiohttp.ClientSession(raise_for_status=True) as session:
+                async with session.post(
+                    NOTIFIER_URL, data=text,
+                    headers={"Authorization": f"Bearer {NOTIFIER_TOKEN}"}
+                ):
+                    pass
+        except Exception:
+            logging.error(f"Could not send notification: {text}")
+            logging.error(traceback.format_exc())

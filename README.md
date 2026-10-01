@@ -34,12 +34,17 @@ To add or modify an entity for tracking:
 
 The `GET /checks` endpoint provides access to the recent check history. The monitoring service records check results in a binary log file (`data/check.log`). The endpoint reads the end of this log file to efficiently retrieve the most recent `N` check results, optionally filtered by a specific `track_id`.
 
+## Notifications
+
+Notifications are directed to a service based on [notifier-alexfomalhaut](https://github.com/fomalhaut88/notifier-alexfomalhaut) that manages a Telergam bot. The notifier endpoint is specified as `NOTIFIER_URL` (for example: `https://notifier.alexfomalhaut.com/notify`) and the authorization is done as the header `Authorization: Bearer <NOTIFIER_TOKEN>`. So you need both environment variables to configure the service: `NOTIFIER_URL`, `NOTIFIER_TOKEN`. If `NOTIFIER_URL` is not set, the notification will not send.
+
 ## Local Run
 
 Create `.env` with the variables:
 
 - LOG_LEVEL
 - APP_TOKEN
+- NOTIFIER_URL
 - NOTIFIER_TOKEN
 
 Prepare Python environment:
@@ -95,4 +100,5 @@ Do not forget to ensure `.env` file with the following variables:
 
 - LOG_LEVEL
 - APP_TOKEN
+- NOTIFIER_URL
 - NOTIFIER_TOKEN
