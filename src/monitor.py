@@ -15,6 +15,7 @@ from .handlers import get_handler_class
 
 SLEEP = 5.0
 TIMEOUT = 15.0
+ATTEMPTS = 3
 
 NOTIFIER_URL = os.getenv("NOTIFIER_URL")
 NOTIFIER_TOKEN = os.getenv("NOTIFIER_TOKEN")
@@ -59,19 +60,22 @@ async def handle_track(track: Track, dt: datetime):
         # Prepare the handling
         handler_class = get_handler_class(track.handler)
         options = json.loads(track.options or "{}")
-        handler = handler_class(**options)
-        coro = handler.process()
 
         # Handle the track
-        try:
-            await asyncio.wait_for(coro, timeout=TIMEOUT)
-        except Exception as exc:
-            logging.info(f"Track {track.name} failed: {str(exc)}")
-            fail_detail = f"{exc.__class__.__name__}\n{str(exc)}\n\n" \
-                          f"{traceback.format_exc()}".strip()
-        else:
-            logging.info(f"Track {track.name} checked successfully")
-            fail_detail = None
+        fail_detail = None
+        for _ in range(ATTEMPTS):
+            handler = handler_class(**options)
+            coro = handler.process()
+            try:
+                await asyncio.wait_for(coro, timeout=TIMEOUT)
+            except Exception as exc:
+                logging.info(f"Track {track.name} failed: {str(exc)}")
+                fail_detail = f"{exc.__class__.__name__}\n{str(exc)}\n\n" \
+                              f"{traceback.format_exc()}".strip()
+                continue
+            else:
+                logging.info(f"Track {track.name} checked successfully")
+                break
 
         has_failed = (
             fail_detail is not None and track.status == TrackStatus.OK
