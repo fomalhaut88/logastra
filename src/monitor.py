@@ -75,6 +75,7 @@ async def handle_track(track: Track, dt: datetime):
                 continue
             else:
                 logging.info(f"Track {track.name} checked successfully")
+                fail_detail = None
                 break
 
         has_failed = (
