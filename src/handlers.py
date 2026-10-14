@@ -1,3 +1,4 @@
+import errno
 import inspect
 import asyncio
 from abc import ABC, abstractmethod
@@ -27,9 +28,16 @@ class PortAvailability(Handler):
         self._port = port
 
     async def process(self) -> None:
-        _reader, writer = await asyncio.open_connection(self._host, self._port)
-        writer.close()
-        await writer.wait_closed()
+        try:
+            _, writer = await asyncio.open_connection(self._host, self._port)
+        except OSError as exc:
+            if exc.errno == errno.EHOSTUNREACH:
+                raise HandlerError("No route to host")
+            else:
+                raise
+        else:
+            writer.close()
+            await writer.wait_closed()
 
 
 class WebAvailability(Handler):
@@ -68,3 +76,7 @@ class SshAvailability(Handler):
                 pass
         except asyncssh.misc.DisconnectError:
             pass
+
+
+class HandlerError(Exception):
+    pass

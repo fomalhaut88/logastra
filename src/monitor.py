@@ -10,7 +10,7 @@ from croniter import croniter
 
 from .db import Track, TrackStatus, AsyncSessionLocal, list_tracks, patch_track
 from .log import save_log
-from .handlers import get_handler_class
+from .handlers import get_handler_class, HandlerError
 
 
 SLEEP = 5.0
@@ -68,6 +68,10 @@ async def handle_track(track: Track, dt: datetime):
             coro = handler.process()
             try:
                 await asyncio.wait_for(coro, timeout=TIMEOUT)
+            except HandlerError as exc:
+                logging.info(f"Track {track.name} failed: {str(exc)}")
+                fail_detail = str(exc)
+                continue
             except Exception as exc:
                 logging.info(f"Track {track.name} failed: {str(exc)}")
                 fail_detail = f"{exc.__class__.__name__}\n{str(exc)}\n\n" \
