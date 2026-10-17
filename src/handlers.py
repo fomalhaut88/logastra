@@ -74,6 +74,11 @@ class SshAvailability(Handler):
         try:
             async with asyncssh.connect(self._host, self._port):
                 pass
+        except OSError as exc:
+            if exc.errno == errno.EHOSTUNREACH:
+                raise HandlerError("No route to host")
+            else:
+                raise
         except asyncssh.misc.DisconnectError:
             pass
 
