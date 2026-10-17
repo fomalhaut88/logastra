@@ -68,7 +68,7 @@ async def handle_track(track: Track, dt: datetime):
             coro = handler.process()
             try:
                 await asyncio.wait_for(coro, timeout=TIMEOUT)
-            except asyncio.Timeout:
+            except asyncio.TimeoutError:
                 logging.info(f"Track {track.name} failed: Timeout")
                 fail_detail = "Timeout"
             except HandlerError as exc:
